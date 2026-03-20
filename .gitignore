@@ -135,5 +135,8 @@ ui/src/ui/views/__screenshots__
 ui/.vitest-attachments
 docs/superpowers
 
+# Rust build artifacts
+rust/target/
+
 # Deprecated changelog fragment workflow
 changelog/fragments/

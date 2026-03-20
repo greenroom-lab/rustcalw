@@ -45,8 +45,8 @@ cargo run -- gateway  # gateway 起動（開発中）
 
 | OpenClaw (src/) | Rust (rust/crates/) | 状態 |
 |-----------------|---------------------|------|
-| config/         | config              | 🔧 スキャフォールド |
-| shared/         | shared              | 🔧 スキャフォールド |
+| config/         | config              | 🟡 型定義完了 (types.*, paths) — IO未着手 |
+| shared/         | shared              | 🟡 コア型・ユーティリティ実装済 (requirements, chat_*, entry_metadata, gateway_bind_url, node_list_types, session_types, string_normalization) |
 | cli/            | cli                 | 🔧 スキャフォールド |
 | gateway/        | (未作成)            | ⬜ 未着手 |
 | providers/      | (未作成)            | ⬜ 未着手 |

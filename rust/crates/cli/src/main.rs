@@ -25,6 +25,8 @@ enum ConfigAction {
     Check,
     /// Show the resolved config path
     Path,
+    /// Verify config round-trip: load → serialize → reload → compare
+    DeployCheck,
 }
 
 #[tokio::main]
@@ -110,6 +112,65 @@ async fn main() -> Result<()> {
             ConfigAction::Path => {
                 let path = rustcalw_config::resolve_config_path();
                 println!("{}", path.display());
+            }
+            ConfigAction::DeployCheck => {
+                let snapshot = rustcalw_config::load_config()?;
+                if !snapshot.exists {
+                    eprintln!("Config file not found: {}", snapshot.path);
+                    std::process::exit(1);
+                }
+
+                // Round-trip: serialize back to JSON
+                let json = serde_json::to_string_pretty(&snapshot.config)
+                    .expect("config should serialize to JSON");
+
+                // Parse again
+                let config2: rustcalw_config::types::openclaw::OpenClawConfig =
+                    serde_json::from_str(&json)
+                        .expect("round-tripped JSON should parse back");
+
+                // Compare key fields
+                let mut errors = vec![];
+
+                // Gateway port
+                let port1 = snapshot.config.gateway.as_ref().and_then(|g| g.port);
+                let port2 = config2.gateway.as_ref().and_then(|g| g.port);
+                if port1 != port2 {
+                    errors.push(format!("gateway.port: {port1:?} != {port2:?}"));
+                }
+
+                // Model providers count
+                let p1 = snapshot.config.models.as_ref().and_then(|m| m.providers.as_ref()).map(|p| p.len());
+                let p2 = config2.models.as_ref().and_then(|m| m.providers.as_ref()).map(|p: &std::collections::HashMap<_, _>| p.len());
+                if p1 != p2 {
+                    errors.push(format!("models.providers count: {p1:?} != {p2:?}"));
+                }
+
+                // YAML round-trip
+                let yaml = serde_yaml::to_string(&snapshot.config)
+                    .expect("config should serialize to YAML");
+                let _config3: rustcalw_config::types::openclaw::OpenClawConfig =
+                    serde_yaml::from_str(&yaml)
+                        .expect("YAML round-trip should parse back");
+
+                if errors.is_empty() {
+                    println!("Deploy check passed.");
+                    println!("  Config: {}", snapshot.path);
+                    println!("  JSON round-trip: OK");
+                    println!("  YAML round-trip: OK");
+                    let providers: Vec<String> = snapshot.config.models
+                        .as_ref()
+                        .and_then(|m| m.providers.as_ref())
+                        .map(|p| p.keys().cloned().collect())
+                        .unwrap_or_default();
+                    println!("  Providers: {}", providers.join(", "));
+                } else {
+                    eprintln!("Deploy check FAILED:");
+                    for e in &errors {
+                        eprintln!("  - {e}");
+                    }
+                    std::process::exit(1);
+                }
             }
         },
     }

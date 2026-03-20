@@ -1,23 +1,3 @@
-# rustcalw — OpenClaw ミラー + 段階的 Rust 化
-
-> greenroom-lab/rustcalw は [openclaw/openclaw](https://github.com/openclaw/openclaw) のミラーリポジトリ。
-> オリジナルとの完全対応を維持しながら、独立性の高いコンポーネントから段階的に Rust 化・Windows ネイティブ対応を進める。
-
-## ミラー戦略
-
-- **upstream**: `openclaw/openclaw` (main)
-- **同期**: `git fetch upstream && git merge upstream/main`
-- ゼロから書き直すのではなく、ミラーから始めて 1 コンポーネントずつ Rust に置き換える
-- 各ステップで upstream との動作互換性を確認
-
-## 関連リポジトリ
-
-- [greenroom-lab/hare](https://github.com/greenroom-lab/hare) — rustcalw の成果を取り込むハレ暫定ランタイム
-
----
-
-> 以下は upstream (openclaw/openclaw) の README です。
-
 # 🦞 OpenClaw — Personal AI Assistant
 
 <p align="center">

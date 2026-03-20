@@ -15,6 +15,11 @@ pub fn workspace_dir() -> PathBuf {
     config_dir().join("workspace")
 }
 
+/// Returns the user's home directory.
+pub fn home_dir() -> Option<PathBuf> {
+    dirs_next()
+}
+
 fn dirs_next() -> Option<PathBuf> {
     #[cfg(windows)]
     {

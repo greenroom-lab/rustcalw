@@ -12,6 +12,19 @@ struct Cli {
 enum Commands {
     /// Start the gateway server
     Gateway,
+    /// Config management
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Check (validate) the current config file
+    Check,
+    /// Show the resolved config path
+    Path,
 }
 
 #[tokio::main]
@@ -31,6 +44,74 @@ async fn main() -> Result<()> {
             // TODO: gateway server implementation
             tracing::warn!("gateway not yet implemented");
         }
+        Commands::Config { action } => match action {
+            ConfigAction::Check => {
+                let snapshot = rustcalw_config::load_config()?;
+                if snapshot.exists {
+                    println!("Config file: {}", snapshot.path);
+                    println!("Valid: {}", snapshot.valid);
+                    if let Some(hash) = &snapshot.hash {
+                        println!("Hash: {hash}");
+                    }
+
+                    // Show key config details
+                    let cfg = &snapshot.config;
+                    if let Some(gw) = &cfg.gateway {
+                        let port = gw.port.unwrap_or(rustcalw_config::io::DEFAULT_GATEWAY_PORT);
+                        let mode = gw.mode.as_deref().unwrap_or("local");
+                        println!("Gateway: port={port}, mode={mode}");
+                    }
+                    if let Some(agents) = &cfg.agents {
+                        let count = agents.list.as_ref().map_or(0, |l| l.len());
+                        println!("Agents: {count} configured");
+                    }
+                    if let Some(models) = &cfg.models {
+                        let count = models.providers.as_ref().map_or(0, |p| p.len());
+                        println!("Model providers: {count}");
+                    }
+                    if let Some(channels) = &cfg.channels {
+                        let mut active = vec![];
+                        if channels.discord.is_some() {
+                            active.push("discord");
+                        }
+                        if channels.telegram.is_some() {
+                            active.push("telegram");
+                        }
+                        if channels.slack.is_some() {
+                            active.push("slack");
+                        }
+                        if channels.whatsapp.is_some() {
+                            active.push("whatsapp");
+                        }
+                        if !active.is_empty() {
+                            println!("Channels: {}", active.join(", "));
+                        }
+                    }
+
+                    if !snapshot.warnings.is_empty() {
+                        println!("\nWarnings:");
+                        for w in &snapshot.warnings {
+                            println!("  - {}: {}", w.path, w.message);
+                        }
+                    }
+                    if !snapshot.issues.is_empty() {
+                        println!("\nIssues:");
+                        for issue in &snapshot.issues {
+                            println!("  - {}: {}", issue.path, issue.message);
+                        }
+                    }
+
+                    println!("\nConfig loaded successfully.");
+                } else {
+                    println!("Config file not found: {}", snapshot.path);
+                    println!("Create it with: mkdir -p ~/.openclaw && echo '{{}}' > ~/.openclaw/openclaw.json");
+                }
+            }
+            ConfigAction::Path => {
+                let path = rustcalw_config::resolve_config_path();
+                println!("{}", path.display());
+            }
+        },
     }
 
     Ok(())

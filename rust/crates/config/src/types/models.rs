@@ -65,6 +65,7 @@ pub struct ModelCompatConfig {
 }
 
 /// Definition of a single model.
+/// Note: reasoning/input/cost are optional in practice — many user configs omit them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelDefinitionConfig {
@@ -72,15 +73,24 @@ pub struct ModelDefinitionConfig {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api: Option<String>,
+    #[serde(default)]
     pub reasoning: bool,
+    #[serde(default)]
     pub input: Vec<String>,
-    pub cost: ModelCost,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost: Option<ModelCost>,
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
     pub context_window: u64,
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
     pub max_tokens: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compat: Option<ModelCompatConfig>,
+}
+
+fn is_zero_u64(v: &u64) -> bool {
+    *v == 0
 }
 
 /// Configuration for a model provider.

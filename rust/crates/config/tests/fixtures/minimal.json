@@ -1,0 +1,19 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "loopback",
+    "port": 18789,
+    "auth": {
+      "mode": "token",
+      "token": "test-token-placeholder"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "consoleStyle": "pretty"
+  },
+  "session": {
+    "scope": "per-sender",
+    "typingMode": "thinking"
+  }
+}

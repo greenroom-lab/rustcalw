@@ -1,0 +1,65 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "loopback",
+    "port": 18789,
+    "auth": {
+      "mode": "token",
+      "token": "test-token"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "consoleStyle": "pretty"
+  },
+  "session": {
+    "scope": "per-sender",
+    "typingMode": "thinking"
+  },
+  "agents": {
+    "list": [
+      {
+        "id": "default",
+        "default": true,
+        "name": "TestBot",
+        "identity": {
+          "name": "TestBot",
+          "emoji": "🤖"
+        }
+      }
+    ]
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "test-provider": {
+        "baseUrl": "https://api.example.com/v1",
+        "apiKey": "test-key",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "test-model",
+            "name": "Test Model",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": {
+              "input": 0.001,
+              "output": 0.002,
+              "cacheRead": 0.0005,
+              "cacheWrite": 0.001
+            },
+            "contextWindow": 131072,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "token": "test-discord-token",
+      "groupPolicy": "allowlist"
+    }
+  }
+}

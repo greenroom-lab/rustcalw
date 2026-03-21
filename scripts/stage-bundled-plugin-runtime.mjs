@@ -3,17 +3,28 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { removePathIfExists } from "./runtime-postbuild-shared.mjs";
 
-function symlinkType() {
-  return process.platform === "win32" ? "junction" : "dir";
-}
+const isWindows = process.platform === "win32";
 
 function relativeSymlinkTarget(sourcePath, targetPath) {
   const relativeTarget = path.relative(path.dirname(targetPath), sourcePath);
   return relativeTarget || ".";
 }
 
-function symlinkPath(sourcePath, targetPath, type) {
-  fs.symlinkSync(relativeSymlinkTarget(sourcePath, targetPath), targetPath, type);
+function symlinkOrCopyFile(sourcePath, targetPath) {
+  if (isWindows) {
+    fs.copyFileSync(sourcePath, targetPath);
+  } else {
+    fs.symlinkSync(relativeSymlinkTarget(sourcePath, targetPath), targetPath);
+  }
+}
+
+function symlinkOrCopyDir(sourcePath, targetPath) {
+  if (isWindows) {
+    // junction requires absolute target path
+    fs.symlinkSync(path.resolve(sourcePath), targetPath, "junction");
+  } else {
+    fs.symlinkSync(relativeSymlinkTarget(sourcePath, targetPath), targetPath, "dir");
+  }
 }
 
 function shouldWrapRuntimeJsFile(sourcePath) {
@@ -63,7 +74,18 @@ function stagePluginRuntimeOverlay(sourceDir, targetDir) {
     }
 
     if (dirent.isSymbolicLink()) {
-      fs.symlinkSync(fs.readlinkSync(sourcePath), targetPath);
+      if (isWindows) {
+        // On Windows, resolve the symlink and copy the actual file/directory
+        const resolved = fs.realpathSync(sourcePath);
+        const stat = fs.statSync(resolved);
+        if (stat.isDirectory()) {
+          fs.cpSync(resolved, targetPath, { recursive: true });
+        } else {
+          fs.copyFileSync(resolved, targetPath);
+        }
+      } else {
+        fs.symlinkSync(fs.readlinkSync(sourcePath), targetPath);
+      }
       continue;
     }
 
@@ -81,7 +103,7 @@ function stagePluginRuntimeOverlay(sourceDir, targetDir) {
       continue;
     }
 
-    symlinkPath(sourcePath, targetPath);
+    symlinkOrCopyFile(sourcePath, targetPath);
   }
 }
 
@@ -91,7 +113,7 @@ function linkPluginNodeModules(params) {
   if (!fs.existsSync(params.sourcePluginNodeModulesDir)) {
     return;
   }
-  fs.symlinkSync(params.sourcePluginNodeModulesDir, runtimeNodeModulesDir, symlinkType());
+  symlinkOrCopyDir(params.sourcePluginNodeModulesDir, runtimeNodeModulesDir);
 }
 
 export function stageBundledPluginRuntime(params = {}) {

@@ -1,3 +1,4 @@
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -29,6 +30,15 @@ export async function withStateDirEnv<T>(
     return await fn({ tempRoot, stateDir });
   } finally {
     restoreStateDirEnv(snapshot);
-    await fs.rm(tempRoot, { recursive: true, force: true });
+    // On Windows the vitest worker process can hold file handles open
+    // inside the temp tree (e.g. via loadSubagentRegistryFromDisk),
+    // causing the async fs.rm to block indefinitely.  Use synchronous
+    // rmSync which completes without awaiting the event loop; ignore
+    // errors from locked files -- the OS reclaims temp dirs on reboot.
+    try {
+      fsSync.rmSync(tempRoot, { recursive: true, force: true });
+    } catch {
+      // Best-effort: ignore EBUSY / EPERM on Windows.
+    }
   }
 }

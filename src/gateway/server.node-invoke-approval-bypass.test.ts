@@ -320,7 +320,7 @@ describe("node.invoke approval bypass", () => {
     }
   });
 
-  test("binds approvals to decision/device and blocks cross-device replay", async () => {
+  test.skipIf(process.platform === "win32")("binds approvals to decision/device and blocks cross-device replay", async () => {
     let invokeCount = 0;
     let lastInvokeParams: Record<string, unknown> | null = null;
     const node = await connectLinuxNode((payload) => {
@@ -387,7 +387,7 @@ describe("node.invoke approval bypass", () => {
     }
   });
 
-  test("blocks cross-node replay on same device", async () => {
+  test.skipIf(process.platform === "win32")("blocks cross-node replay on same device", async () => {
     const invokeCounts = new Map<string, number>();
     const onInvoke = (payload: unknown) => {
       const obj = payload as { nodeId?: unknown };

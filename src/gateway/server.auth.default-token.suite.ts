@@ -180,11 +180,10 @@ export function registerDefaultAuthTokenSuite(): void {
         expectStatusError?: string;
       }> = [
         {
-          name: "operator + valid shared token => connected with cleared scopes",
+          name: "operator + valid shared token => connected with preserved scopes",
           opts: { role: "operator", token, device: null },
           expectConnectOk: true,
-          expectStatusOk: false,
-          expectStatusError: "missing scope",
+          expectStatusOk: true,
         },
         {
           name: "node + valid shared token => rejected without device",

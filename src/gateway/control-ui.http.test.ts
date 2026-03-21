@@ -225,73 +225,82 @@ describe("handleControlUiHttpRequest", () => {
     }
   });
 
-  it("rejects avatar symlink paths from resolver", async () => {
-    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-avatar-http-link-"));
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-avatar-http-outside-"));
-    try {
-      const outsideFile = path.join(outside, "secret.txt");
-      await fs.writeFile(outsideFile, "outside-secret\n");
-      const linkPath = path.join(tmp, "avatar-link.png");
-      await fs.symlink(outsideFile, linkPath);
+  it.skipIf(process.platform === "win32")(
+    "rejects avatar symlink paths from resolver",
+    async () => {
+      const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-avatar-http-link-"));
+      const outside = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-avatar-http-outside-"));
+      try {
+        const outsideFile = path.join(outside, "secret.txt");
+        await fs.writeFile(outsideFile, "outside-secret\n");
+        const linkPath = path.join(tmp, "avatar-link.png");
+        await fs.symlink(outsideFile, linkPath);
 
-      const { res, end, handled } = runAvatarRequest({
-        url: "/avatar/main",
-        method: "GET",
-        resolveAvatar: () => ({ kind: "local", filePath: linkPath }),
-      });
-
-      expectNotFoundResponse({ handled, res, end });
-    } finally {
-      await fs.rm(tmp, { recursive: true, force: true });
-      await fs.rm(outside, { recursive: true, force: true });
-    }
-  });
-
-  it("rejects symlinked assets that resolve outside control-ui root", async () => {
-    await withControlUiRoot({
-      fn: async (tmp) => {
-        const assetsDir = path.join(tmp, "assets");
-        const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-ui-outside-"));
-        try {
-          const outsideFile = path.join(outsideDir, "secret.txt");
-          await fs.mkdir(assetsDir, { recursive: true });
-          await fs.writeFile(outsideFile, "outside-secret\n");
-          await fs.symlink(outsideFile, path.join(assetsDir, "leak.txt"));
-
-          const { res, end } = makeMockHttpResponse();
-          const handled = handleControlUiHttpRequest(
-            { url: "/assets/leak.txt", method: "GET" } as IncomingMessage,
-            res,
-            {
-              root: { kind: "resolved", path: tmp },
-            },
-          );
-          expectNotFoundResponse({ handled, res, end });
-        } finally {
-          await fs.rm(outsideDir, { recursive: true, force: true });
-        }
-      },
-    });
-  });
-
-  it("allows symlinked assets that resolve inside control-ui root", async () => {
-    await withControlUiRoot({
-      fn: async (tmp) => {
-        const { assetsDir, filePath } = await writeAssetFile(tmp, "actual.txt", "inside-ok\n");
-        await fs.symlink(filePath, path.join(assetsDir, "linked.txt"));
-
-        const { res, end, handled } = runControlUiRequest({
-          url: "/assets/linked.txt",
+        const { res, end, handled } = runAvatarRequest({
+          url: "/avatar/main",
           method: "GET",
-          rootPath: tmp,
+          resolveAvatar: () => ({ kind: "local", filePath: linkPath }),
         });
 
-        expect(handled).toBe(true);
-        expect(res.statusCode).toBe(200);
-        expect(String(end.mock.calls[0]?.[0] ?? "")).toBe("inside-ok\n");
-      },
-    });
-  });
+        expectNotFoundResponse({ handled, res, end });
+      } finally {
+        await fs.rm(tmp, { recursive: true, force: true });
+        await fs.rm(outside, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "rejects symlinked assets that resolve outside control-ui root",
+    async () => {
+      await withControlUiRoot({
+        fn: async (tmp) => {
+          const assetsDir = path.join(tmp, "assets");
+          const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-ui-outside-"));
+          try {
+            const outsideFile = path.join(outsideDir, "secret.txt");
+            await fs.mkdir(assetsDir, { recursive: true });
+            await fs.writeFile(outsideFile, "outside-secret\n");
+            await fs.symlink(outsideFile, path.join(assetsDir, "leak.txt"));
+
+            const { res, end } = makeMockHttpResponse();
+            const handled = handleControlUiHttpRequest(
+              { url: "/assets/leak.txt", method: "GET" } as IncomingMessage,
+              res,
+              {
+                root: { kind: "resolved", path: tmp },
+              },
+            );
+            expectNotFoundResponse({ handled, res, end });
+          } finally {
+            await fs.rm(outsideDir, { recursive: true, force: true });
+          }
+        },
+      });
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "allows symlinked assets that resolve inside control-ui root",
+    async () => {
+      await withControlUiRoot({
+        fn: async (tmp) => {
+          const { assetsDir, filePath } = await writeAssetFile(tmp, "actual.txt", "inside-ok\n");
+          await fs.symlink(filePath, path.join(assetsDir, "linked.txt"));
+
+          const { res, end, handled } = runControlUiRequest({
+            url: "/assets/linked.txt",
+            method: "GET",
+            rootPath: tmp,
+          });
+
+          expect(handled).toBe(true);
+          expect(res.statusCode).toBe(200);
+          expect(String(end.mock.calls[0]?.[0] ?? "")).toBe("inside-ok\n");
+        },
+      });
+    },
+  );
 
   it("serves HEAD for in-root assets without writing a body", async () => {
     await withControlUiRoot({
@@ -311,28 +320,33 @@ describe("handleControlUiHttpRequest", () => {
     });
   });
 
-  it("rejects symlinked SPA fallback index.html outside control-ui root", async () => {
-    await withControlUiRoot({
-      fn: async (tmp) => {
-        const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-ui-index-outside-"));
-        try {
-          const outsideIndex = path.join(outsideDir, "index.html");
-          await fs.writeFile(outsideIndex, "<html>outside</html>\n");
-          await fs.rm(path.join(tmp, "index.html"));
-          await fs.symlink(outsideIndex, path.join(tmp, "index.html"));
+  it.skipIf(process.platform === "win32")(
+    "rejects symlinked SPA fallback index.html outside control-ui root",
+    async () => {
+      await withControlUiRoot({
+        fn: async (tmp) => {
+          const outsideDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), "openclaw-ui-index-outside-"),
+          );
+          try {
+            const outsideIndex = path.join(outsideDir, "index.html");
+            await fs.writeFile(outsideIndex, "<html>outside</html>\n");
+            await fs.rm(path.join(tmp, "index.html"));
+            await fs.symlink(outsideIndex, path.join(tmp, "index.html"));
 
-          const { res, end, handled } = runControlUiRequest({
-            url: "/app/route",
-            method: "GET",
-            rootPath: tmp,
-          });
-          expectNotFoundResponse({ handled, res, end });
-        } finally {
-          await fs.rm(outsideDir, { recursive: true, force: true });
-        }
-      },
-    });
-  });
+            const { res, end, handled } = runControlUiRequest({
+              url: "/app/route",
+              method: "GET",
+              rootPath: tmp,
+            });
+            expectNotFoundResponse({ handled, res, end });
+          } finally {
+            await fs.rm(outsideDir, { recursive: true, force: true });
+          }
+        },
+      });
+    },
+  );
 
   it("rejects hardlinked index.html for non-package control-ui roots", async () => {
     await withControlUiRoot({

@@ -74,9 +74,11 @@ const readConnectChallengeNonce = async (ws: WebSocket) => {
 };
 
 const openTailscaleWs = async (port: number) => {
+  // Note: non-browser tailscale clients do not send an Origin header.
+  // Including one would trigger the browser origin check
+  // (enforceOriginCheckForAnyClient) which is unrelated to tailscale auth.
   const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
     headers: {
-      origin: "https://gateway.tailnet.ts.net",
       "x-forwarded-for": "100.64.0.1",
       "x-forwarded-proto": "https",
       "x-forwarded-host": "gateway.tailnet.ts.net",

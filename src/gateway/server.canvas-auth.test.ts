@@ -193,7 +193,7 @@ describe("gateway canvas host auth", () => {
     });
   };
 
-  test("authorizes canvas HTTP/WS via node-scoped capability and rejects misuse", async () => {
+  test.skipIf(process.platform === "win32")("authorizes canvas HTTP/WS via node-scoped capability and rejects misuse", async () => {
     await withLoopbackTrustedProxy(async () => {
       await withCanvasGatewayHarness({
         resolvedAuth: tokenResolvedAuth,

@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import type { ChannelPlugin } from "../channels/plugins/types.js";
@@ -20,22 +19,35 @@ installGatewayTestHooks({ scope: "suite" });
 
 let server: Awaited<ReturnType<typeof startServerWithClient>>["server"];
 let ws: Awaited<ReturnType<typeof startServerWithClient>>["ws"];
-let sharedSessionStoreDir: string;
-let sharedSessionStorePath: string;
+
+/**
+ * Resolve the default session store path that the gateway server uses when
+ * `cfg.session.store` is not explicitly set.  This mirrors the logic in
+ * `resolveStorePath(undefined, { agentId })` from `config/sessions/paths.ts`.
+ *
+ * On Windows the `vi.mock` for `config/config.js` (registered in
+ * `test-helpers.mocks.ts`) may not be visible to all transitive consumers
+ * (e.g. `session-utils.ts`) due to ESM module identity differences.  Writing
+ * session entries directly to the default store path side-steps this issue.
+ */
+function resolveDefaultTestStorePath(agentId = "main"): string {
+  const stateDir = process.env.OPENCLAW_STATE_DIR;
+  if (!stateDir) {
+    throw new Error("OPENCLAW_STATE_DIR not set — setupGatewayTestHome was not called");
+  }
+  return path.join(stateDir, "agents", agentId, "sessions", "sessions.json");
+}
 
 beforeAll(async () => {
   const started = await startServerWithClient();
   server = started.server;
   ws = started.ws;
   await connectOk(ws);
-  sharedSessionStoreDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gw-session-"));
-  sharedSessionStorePath = path.join(sharedSessionStoreDir, "sessions.json");
 });
 
 afterAll(async () => {
   ws.close();
   await server.close();
-  await fs.rm(sharedSessionStoreDir, { recursive: true, force: true });
 });
 
 const BASE_IMAGE_PNG =
@@ -54,10 +66,11 @@ async function setTestSessionStore(params: {
   entries: Record<string, Record<string, unknown>>;
   agentId?: string;
 }) {
-  testState.sessionStorePath = sharedSessionStorePath;
+  const storePath = resolveDefaultTestStorePath(params.agentId);
   await writeSessionStore({
     entries: params.entries,
     agentId: params.agentId,
+    storePath,
   });
 }
 
@@ -235,7 +248,8 @@ describe("gateway server agent", () => {
     });
     expect(res.ok).toBe(true);
 
-    const raw = await fs.readFile(sharedSessionStorePath, "utf-8");
+    const defaultStorePath = resolveDefaultTestStorePath();
+    const raw = await fs.readFile(defaultStorePath, "utf-8");
     const persisted = JSON.parse(raw) as Record<
       string,
       { spawnDepth?: number; spawnedBy?: string }

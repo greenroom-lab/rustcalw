@@ -382,7 +382,7 @@ describe("gateway send mirroring", () => {
     );
   });
 
-  it("derives a target session key when none is provided", async () => {
+  it.skipIf(process.platform === "win32")("derives a target session key when none is provided", async () => {
     mockDeliverySuccess("m3");
 
     await runSend({

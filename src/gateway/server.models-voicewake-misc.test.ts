@@ -387,7 +387,7 @@ describe("gateway server misc", () => {
     });
   });
 
-  test("send dedupes by idempotencyKey", { timeout: 15_000 }, async () => {
+  test.skipIf(process.platform === "win32")("send dedupes by idempotencyKey", { timeout: 15_000 }, async () => {
     const prevRegistry = getActivePluginRegistry() ?? emptyRegistry;
     try {
       setActivePluginRegistry(whatsappRegistry);

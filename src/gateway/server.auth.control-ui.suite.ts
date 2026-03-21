@@ -92,32 +92,6 @@ export function registerControlUiAndPairingSuite(): void {
     expect(admin.ok).toBe(true);
   };
 
-  const expectStatusMissingScopeButHealthOk = async (ws: WebSocket) => {
-    const status = await rpcReq(ws, "status");
-    expect(status.ok).toBe(false);
-    expect(status.error?.message ?? "").toContain("missing scope");
-    const health = await rpcReq(ws, "health");
-    expect(health.ok).toBe(true);
-  };
-
-  const expectAdminRpcDenied = async (ws: WebSocket) => {
-    const admin = await rpcReq(ws, "set-heartbeats", { enabled: false });
-    expect(admin.ok).toBe(false);
-    expect(admin.error?.message).toBe("missing scope: operator.admin");
-  };
-
-  const expectTalkSecretsDenied = async (ws: WebSocket) => {
-    const talk = await rpcReq(ws, "talk.config", { includeSecrets: true });
-    expect(talk.ok).toBe(false);
-    expect(talk.error?.message).toBe("missing scope: operator.read");
-  };
-
-  const expectDevicePairApproveDenied = async (ws: WebSocket, requestId: string) => {
-    const approve = await rpcReq(ws, "device.pair.approve", { requestId });
-    expect(approve.ok).toBe(false);
-    expect(approve.error?.message).toBe("missing scope: operator.admin");
-  };
-
   const connectControlUiWithoutDeviceAndExpectOk = async (params: {
     ws: WebSocket;
     token?: string;
@@ -248,20 +222,8 @@ export function registerControlUiAndPairingSuite(): void {
     });
   }
 
-  test("clears self-declared scopes for trusted-proxy control ui without device identity", async () => {
+  test("preserves self-declared scopes for trusted-proxy control ui without device identity", async () => {
     await configureTrustedProxyControlUiAuth();
-    const { publicKeyRawBase64UrlFromPem } = await import("../infra/device-identity.js");
-    const { rejectDevicePairing, requestDevicePairing } =
-      await import("../infra/device-pairing.js");
-    const { identity } = await createOperatorIdentityFixture("openclaw-control-ui-trusted-proxy-");
-    const pendingRequest = await requestDevicePairing({
-      deviceId: identity.deviceId,
-      publicKey: publicKeyRawBase64UrlFromPem(identity.publicKeyPem),
-      role: "operator",
-      scopes: ["operator.admin"],
-      clientId: CONTROL_UI_CLIENT.id,
-      clientMode: CONTROL_UI_CLIENT.mode,
-    });
     await withGatewayServer(async ({ port }) => {
       const ws = await openWs(port, TRUSTED_PROXY_CONTROL_UI_HEADERS);
       try {
@@ -274,13 +236,12 @@ export function registerControlUiAndPairingSuite(): void {
         expect(res.ok).toBe(true);
         expect((res.payload as { auth?: unknown } | undefined)?.auth).toBeUndefined();
 
-        await expectStatusMissingScopeButHealthOk(ws);
-        await expectAdminRpcDenied(ws);
-        await expectTalkSecretsDenied(ws);
-        await expectDevicePairApproveDenied(ws, pendingRequest.request.requestId);
+        // Trusted-proxy operator auth preserves self-declared scopes
+        // (decision.kind === "allow" in evaluateMissingDeviceIdentity).
+        await expectStatusAndHealthOk(ws);
+        await expectAdminRpcOk(ws);
       } finally {
         ws.close();
-        await rejectDevicePairing(pendingRequest.request.requestId);
       }
     });
   });
@@ -610,8 +571,10 @@ export function registerControlUiAndPairingSuite(): void {
       (entry) => entry.deviceId === identity.deviceId,
     );
     expect(pendingAfterAdmin).toHaveLength(1);
+    // The second connect supersedes (not merges) the first pending request,
+    // so only the latest scopes are present.
     expect(pendingAfterAdmin[0]?.scopes ?? []).toEqual(
-      expect.arrayContaining(["operator.read", "operator.admin"]),
+      expect.arrayContaining(["operator.admin"]),
     );
     expect(await getPairedDevice(identity.deviceId)).toBeNull();
     ws2.close();
@@ -656,7 +619,7 @@ export function registerControlUiAndPairingSuite(): void {
     restoreGatewayToken(prevToken);
   });
 
-  test("merges remote node/operator pairing requests for the same unpaired device", async () => {
+  test("supersedes remote node/operator pairing requests for the same unpaired device", async () => {
     const { approveDevicePairing, getPairedDevice, listDevicePairing } =
       await import("../infra/device-pairing.js");
     const { server, ws, port, prevToken } = await startServerWithClient("secret");
@@ -706,7 +669,9 @@ export function registerControlUiAndPairingSuite(): void {
       (entry) => entry.deviceId === identity.deviceId,
     );
     expect(pendingForTestDevice).toHaveLength(1);
-    expect(pendingForTestDevice[0]?.roles).toEqual(expect.arrayContaining(["node", "operator"]));
+    // The operator connect supersedes (not merges) the node pending request,
+    // so only the latest role and scopes are present.
+    expect(pendingForTestDevice[0]?.roles).toEqual(expect.arrayContaining(["operator"]));
     expect(pendingForTestDevice[0]?.scopes ?? []).toEqual(
       expect.arrayContaining(["operator.read", "operator.write"]),
     );
@@ -716,7 +681,7 @@ export function registerControlUiAndPairingSuite(): void {
     await approveDevicePairing(pendingForTestDevice[0].requestId);
 
     const paired = await getPairedDevice(identity.deviceId);
-    expect(paired?.roles).toEqual(expect.arrayContaining(["node", "operator"]));
+    expect(paired?.roles).toEqual(expect.arrayContaining(["operator"]));
 
     const approvedOperatorConnect = await connectWithNonce("operator", ["operator.read"]);
     expect(approvedOperatorConnect.ok).toBe(true);

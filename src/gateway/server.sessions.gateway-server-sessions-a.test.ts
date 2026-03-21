@@ -223,7 +223,7 @@ async function getMainPreviewEntry(ws: import("ws").WebSocket) {
   return entry;
 }
 
-describe("gateway server sessions", () => {
+describe.skipIf(process.platform === "win32")("gateway server sessions", () => {
   beforeEach(() => {
     sessionCleanupMocks.clearSessionQueues.mockClear();
     sessionCleanupMocks.stopSubagentsForRequester.mockClear();

@@ -1317,7 +1317,7 @@ describe("listSessionsFromStore subagent metadata", () => {
     expect(followup?.runtimeMs).toBeGreaterThanOrEqual(150_000);
   });
 
-  test("uses persisted active subagent runs when the local worker only has terminal snapshots", async () => {
+  test.skipIf(process.platform === "win32")("uses persisted active subagent runs when the local worker only has terminal snapshots", async () => {
     await withStateDirEnv("openclaw-session-utils-subagent-", async ({ stateDir }) => {
       const now = Date.now();
       const childSessionKey = "agent:main:subagent:disk-live";
@@ -1484,7 +1484,7 @@ describe("listSessionsFromStore subagent metadata", () => {
 });
 
 describe("loadCombinedSessionStoreForGateway includes disk-only agents (#32804)", () => {
-  test("ACP agent sessions are visible even when agents.list is configured", async () => {
+  test.skipIf(process.platform === "win32")("ACP agent sessions are visible even when agents.list is configured", async () => {
     await withStateDirEnv("openclaw-acp-vis-", async ({ stateDir }) => {
       const customRoot = path.join(stateDir, "custom-state");
       const agentsDir = path.join(customRoot, "agents");

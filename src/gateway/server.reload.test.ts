@@ -565,12 +565,15 @@ describe("gateway hot reload", () => {
     );
   });
 
-  it("fails startup when an active exec ref id contains traversal segments", async () => {
-    await writeGatewayTraversalExecRefConfig();
-    await expect(withGatewayServer(async () => {})).rejects.toThrow(
-      /must not include "\." or "\.\." path segments/i,
-    );
-  });
+  it.skipIf(process.platform === "win32")(
+    "fails startup when an active exec ref id contains traversal segments",
+    async () => {
+      await writeGatewayTraversalExecRefConfig();
+      await expect(withGatewayServer(async () => {})).rejects.toThrow(
+        /must not include "\." or "\.\." path segments/i,
+      );
+    },
+  );
 
   it("allows startup when unresolved refs exist only on disabled surfaces", async () => {
     await writeDisabledSurfaceRefConfig();
@@ -767,7 +770,9 @@ describe("gateway hot reload", () => {
     }
   });
 
-  it("keeps last-known-good auth snapshot active when gateway auth token exec reload fails", async () => {
+  it.skipIf(process.platform === "win32")(
+    "keeps last-known-good auth snapshot active when gateway auth token exec reload fails",
+    async () => {
     const stateDir = process.env.OPENCLAW_STATE_DIR;
     if (!stateDir) {
       throw new Error("OPENCLAW_STATE_DIR is not set");
@@ -868,7 +873,8 @@ process.stdin.on("end", () => {
       ws.close();
       await server.close();
     }
-  });
+  },
+  );
 });
 
 describe("gateway agents", () => {

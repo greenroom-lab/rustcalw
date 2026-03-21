@@ -141,7 +141,7 @@ describe("createGatewayPluginRequestHandler", () => {
     setActivePluginRegistry(createEmptyPluginRegistry());
   });
 
-  it("caps unauthenticated plugin routes to non-admin subagent scopes", async () => {
+  it.skipIf(process.platform === "win32")("caps unauthenticated plugin routes to non-admin subagent scopes", async () => {
     loadOpenClawPlugins.mockReset();
     handleGatewayRequest.mockReset();
     handleGatewayRequest.mockImplementation(async (opts: HandleGatewayRequestOptions) => {

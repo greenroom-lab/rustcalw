@@ -40,4 +40,7 @@
 - providers: 完了 (5モジュール) — テスト15件
 - gateway: Phase 2 完了 (25モジュール) — テスト121件
 - cli: config サブコマンド実装済
+- 合計: Rust テスト347件
+
+> ※ 最新のテスト数は CLAUDE.md を参照
 - channels: 未着手

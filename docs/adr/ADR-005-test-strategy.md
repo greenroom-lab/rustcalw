@@ -42,7 +42,9 @@
 ### テスト数の追跡
 
 - CLAUDE.md のモジュール対応表でテスト数を記録
-- 現在の合計: 335件 (shared 175 + config 24 + providers 15 + gateway 121)
+- 現在の合計: 347件 (shared 175 + config 24 + providers 15 + gateway 121 + cli 12)
+
+> ※ 最新のテスト数は CLAUDE.md を参照
 
 ## 根拠
 

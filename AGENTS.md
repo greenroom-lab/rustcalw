@@ -1,3 +1,5 @@
+> ℹ️ このファイルは upstream (openclaw/openclaw) のものです。rustcalw 固有のルールは CLAUDE.md を参照してください。
+
 # Repository Guidelines
 
 - Repo: https://github.com/openclaw/openclaw

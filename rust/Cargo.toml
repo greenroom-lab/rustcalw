@@ -26,3 +26,5 @@ tempfile = "3"
 # Internal crates
 rustcalw-shared = { path = "crates/shared" }
 rustcalw-config = { path = "crates/config" }
+rustcalw-providers = { path = "crates/providers" }
+rustcalw-gateway = { path = "crates/gateway" }

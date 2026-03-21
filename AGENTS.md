@@ -204,3 +204,49 @@
 - For manual `openclaw message send` messages that include `!`, use the heredoc pattern noted below to avoid the Bash tool’s escaping.
 - Release guardrails: do not change version numbers without operator’s explicit consent; always ask permission before running any npm publish/release step.
 - Beta release guardrail: when using a beta Git tag (for example `vYYYY.M.D-beta.N`), publish npm with a matching beta version suffix (for example `YYYY.M.D-beta.N`) rather than a plain version on `--tag beta`; otherwise the plain version name gets consumed/blocked.
+
+---
+
+# rustcalw 固有ガイドライン
+
+> 以下は greenroom-lab/rustcalw 固有のガイドラインです。upstream (openclaw/openclaw) には存在しません。
+> upstream 同期 (`git merge upstream/main`) 時、このセクションはローカル側を保持してください。
+
+## ブランチモデル
+
+- `upstream` remote = `openclaw/openclaw` (読取専用、絶対に push しない)
+- `origin/main` = `greenroom-lab/rustcalw` の作業ブランチ
+- upstream 同期: `git fetch upstream && git merge upstream/main`
+- 変更対象: `rust/`, `CLAUDE.md`, `AGENTS.md`, `docs/adr/`, `docs/*.md` (rustcalw 固有), `.github/workflows/rust-ci.yml`
+
+## Rust 開発
+
+クイックスタート:
+
+```bash
+cd rust/
+cargo build && cargo test && cargo clippy -- -D warnings
+```
+
+crate 構成・コーディング規約・移植ワークフローの詳細は `CLAUDE.md` を参照。
+
+## upstream 同期
+
+```bash
+git fetch upstream && git merge upstream/main
+```
+
+コンフリクト解決: `src/` 等は upstream 優先、`rust/` / `CLAUDE.md` / `docs/adr/` はローカル保持。
+AGENTS.md は upstream セクション (上部) + rustcalw セクション (下部) を両方保持。
+
+## Windows 開発環境
+
+詳細は `docs/dev-setup-windows.md` を参照。最低限: Rust stable-msvc + VS Build Tools (C++)。
+
+## 関連ドキュメント
+
+- `CLAUDE.md` — 移植方針・モジュール対応表・設計原則
+- `docs/adr/` — Architecture Decision Records
+- `docs/module-mapping.md` — TS→Rust 完全対応マップ
+- `docs/windows-compat-matrix.md` — Windows 互換性マトリックス
+- `docs/dev-setup-windows.md` — Windows 開発環境セットアップ

@@ -1,13 +1,15 @@
 [package]
-name = "rustcalw-shared"
+name = "rustcalw-gateway"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [dependencies]
-regex.workspace = true
+rustcalw-shared.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-tokio.workspace = true
 url = "2"
+urlencoding = "2"
+
+[dev-dependencies]

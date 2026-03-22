@@ -41,7 +41,7 @@ rustcalw/
 ├── rust/         # Rust 移植コード (Phase 3 以降で使用)
 │   └── crates/   # cli, config, shared, providers, gateway
 ├── package.json  # pnpm ワークスペース
-└── openclaw.mjs  # CLI エントリポイント (Node.js >= 22.12)
+└── openclaw.mjs  # CLI エントリポイント (Node.js >= 22.16.0)
 ```
 
 ## OpenClaw (TS) ビルド・起動

@@ -1,10 +1,11 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { WebSocket } from "ws";
-import { whatsappPlugin } from "../../extensions/whatsapp/src/channel.js";
 import type { ChannelPlugin } from "../channels/plugins/types.js";
 import { emitAgentEvent, registerAgentRunContext } from "../infra/agent-events.js";
+import { createChannelTestPluginBase } from "../test-utils/channel-plugins.js";
 import { setRegistry } from "./server.agent.gateway-server-agent.mocks.js";
 import { createRegistry } from "./server.e2e-registry-helpers.js";
 import {
@@ -57,12 +58,31 @@ const createMSTeamsPlugin = (params?: { aliases?: string[] }): ChannelPlugin => 
   },
 });
 
+const createStubChannelPlugin = (params: {
+  id: ChannelPlugin["id"];
+  label: string;
+}): ChannelPlugin => ({
+  ...createChannelTestPluginBase({
+    id: params.id,
+    label: params.label,
+    config: {
+      listAccountIds: () => [],
+      resolveAccount: () => ({}),
+    },
+  }),
+  outbound: {
+    deliveryMode: "direct",
+    sendText: async () => ({ channel: params.id, messageId: "msg-test" }),
+    sendMedia: async () => ({ channel: params.id, messageId: "msg-test" }),
+  },
+});
+
 const emptyRegistry = createRegistry([]);
 const defaultRegistry = createRegistry([
   {
     pluginId: "whatsapp",
     source: "test",
-    plugin: whatsappPlugin,
+    plugin: createStubChannelPlugin({ id: "whatsapp", label: "WhatsApp" }),
   },
 ]);
 
@@ -94,30 +114,12 @@ function expectAgentRoutingCall(params: {
   expect(typeof call.sessionId).toBe("string");
 }
 
-/**
- * Resolve the default session store path that the gateway server uses when
- * `cfg.session.store` is not explicitly set.  This mirrors the logic in
- * `resolveStorePath(undefined, { agentId })` from `config/sessions/paths.ts`.
- *
- * On Windows the `vi.mock` for `config/config.js` (registered in
- * `test-helpers.mocks.ts`) may not be visible to all transitive consumers
- * (e.g. `session-utils.ts`) due to ESM module identity differences.  Writing
- * session entries directly to the default store path side-steps this issue.
- */
-function resolveDefaultTestStorePath(agentId = "main"): string {
-  const stateDir = process.env.OPENCLAW_STATE_DIR;
-  if (!stateDir) {
-    throw new Error("OPENCLAW_STATE_DIR not set — setupGatewayTestHome was not called");
-  }
-  return path.join(stateDir, "agents", agentId, "sessions", "sessions.json");
-}
-
 async function writeMainSessionEntry(params: {
   sessionId: string;
   lastChannel?: string;
   lastTo?: string;
 }) {
-  const storePath = resolveDefaultTestStorePath();
+  await useTempSessionStorePath();
   await writeSessionStore({
     entries: {
       main: {
@@ -127,7 +129,6 @@ async function writeMainSessionEntry(params: {
         lastTo: params.lastTo,
       },
     },
-    storePath,
   });
 }
 
@@ -158,6 +159,11 @@ async function sendAgentWsRequestAndWaitFinal(
   return await finalP;
 }
 
+async function useTempSessionStorePath() {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gw-"));
+  testState.sessionStorePath = path.join(dir, "sessions.json");
+}
+
 describe("gateway server agent", () => {
   beforeEach(() => {
     setRegistry(defaultRegistry);
@@ -168,15 +174,6 @@ describe("gateway server agent", () => {
   });
 
   test("agent errors when deliver=true and last-channel plugin is unavailable", async () => {
-    // Register a plugin whose channel is not built-in (msteams is extension-only).
-    // Write a session entry WITHOUT lastChannel so that `channel: "last"` cannot
-    // resolve to a deliverable destination — the server must respond with an error.
-    //
-    // NOTE: Due to a vitest module-identity issue the plugin registry set via
-    // `setRegistry` is not visible to the server's own `normalizeMessageChannel`
-    // import, so extension-only channels cannot be resolved by the server even
-    // when registered.  Writing a session entry without `lastChannel` reproduces
-    // the intended "no deliverable channel" scenario reliably across platforms.
     const registry = createRegistry([
       {
         pluginId: "msteams",
@@ -187,6 +184,8 @@ describe("gateway server agent", () => {
     setRegistry(registry);
     await writeMainSessionEntry({
       sessionId: "sess-teams",
+      lastChannel: "msteams",
+      lastTo: "conversation:teams-123",
     });
     const res = await rpcReq(ws, "agent", {
       message: "hi",
@@ -201,14 +200,15 @@ describe("gateway server agent", () => {
     expect(vi.mocked(agentCommand)).not.toHaveBeenCalled();
   });
 
-  test("agent accepts built-in channel aliases (imsg → imessage, gchat → googlechat)", async () => {
-    // This test verifies that built-in channel aliases are resolved correctly.
-    //
-    // NOTE: Plugin-level aliases (e.g. "teams" → "msteams") cannot be tested
-    // here because the vitest module-identity issue prevents the server's
-    // `normalizeMessageChannel` from seeing the plugin registry set via
-    // `setRegistry`.  Built-in aliases (defined in `channels/registry.ts`) work
-    // because they don't depend on the runtime plugin registry.
+  test("agent accepts built-in channel alias (imsg)", async () => {
+    const registry = createRegistry([
+      {
+        pluginId: "msteams",
+        source: "test",
+        plugin: createMSTeamsPlugin({ aliases: ["teams"] }),
+      },
+    ]);
+    setRegistry(registry);
     await writeMainSessionEntry({
       sessionId: "sess-alias",
       lastChannel: "imessage",
@@ -222,17 +222,35 @@ describe("gateway server agent", () => {
       idempotencyKey: "idem-agent-imsg",
     });
     expect(resIMessage.ok).toBe(true);
-    expectAgentRoutingCall({ channel: "imessage", deliver: true, fromEnd: 1 });
 
-    const resGChat = await rpcReq(ws, "agent", {
+    expectAgentRoutingCall({ channel: "imessage", deliver: true, fromEnd: 1 });
+  });
+
+  test("agent accepts plugin channel alias (teams)", async () => {
+    const registry = createRegistry([
+      {
+        pluginId: "msteams",
+        source: "test",
+        plugin: createMSTeamsPlugin({ aliases: ["teams"] }),
+      },
+    ]);
+    setRegistry(registry);
+
+    const resTeams = await rpcReq(ws, "agent", {
       message: "hi",
       sessionKey: "main",
-      channel: "gchat",
+      channel: "teams",
+      to: "conversation:teams-abc",
       deliver: false,
-      idempotencyKey: "idem-agent-gchat",
+      idempotencyKey: "idem-agent-teams",
     });
-    expect(resGChat.ok).toBe(true);
-    expectAgentRoutingCall({ channel: "googlechat", deliver: false, fromEnd: 1 });
+    expect(resTeams.ok).toBe(true);
+    expectAgentRoutingCall({
+      channel: "msteams",
+      deliver: false,
+      to: "conversation:teams-abc",
+      fromEnd: 1,
+    });
   });
 
   test("agent rejects unknown channel", async () => {
@@ -307,7 +325,11 @@ describe("gateway server agent", () => {
 
   test("write-scoped callers cannot use sessions.reset directly but can still reset conversations via agent", async () => {
     await withGatewayServer(async ({ port }) => {
-      const storePath = resolveDefaultTestStorePath();
+      await useTempSessionStorePath();
+      const storePath = testState.sessionStorePath;
+      if (!storePath) {
+        throw new Error("missing session store path");
+      }
 
       await writeSessionStore({
         entries: {
@@ -316,7 +338,6 @@ describe("gateway server agent", () => {
             updatedAt: Date.now(),
           },
         },
-        storePath,
       });
 
       const writeWs = new WebSocket(`ws://127.0.0.1:${port}`);

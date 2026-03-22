@@ -144,6 +144,7 @@ impl MethodScopeGroups {
                     "chat.abort",
                     "sessions.create",
                     "sessions.send",
+                    "sessions.steer",
                     "sessions.abort",
                     "browser.request",
                     "push.test",
@@ -300,6 +301,7 @@ mod tests {
         assert!(is_read_method("sessions.list"));
         assert!(is_write_method("send"));
         assert!(is_write_method("chat.send"));
+        assert!(is_write_method("sessions.steer"));
         assert!(is_admin_only_method("agents.create"));
         assert!(is_admin_only_method("cron.add"));
     }

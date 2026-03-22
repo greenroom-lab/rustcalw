@@ -26,6 +26,10 @@ pub const DEDUPE_TTL_MS: u64 = 5 * 60_000;
 /// Maximum number of deduplication entries.
 pub const DEDUPE_MAX: usize = 1000;
 
+/// Default port for the Rust gateway server.
+/// Uses 28789 to avoid collision with the TS gateway's default port (18789).
+pub const RUST_GATEWAY_DEFAULT_PORT: u16 = 28789;
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------

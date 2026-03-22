@@ -125,16 +125,8 @@ fn deploy_check_missing_file_exits_nonzero() {
         .stderr(predicate::str::contains("Config file not found"));
 }
 
-// ── gateway (stub) ───────────────────────────────────────────
-
-#[test]
-fn gateway_prints_not_implemented() {
-    wnc()
-        .args(["gateway"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("not yet implemented"));
-}
+// ── gateway ──────────────────────────────────────────────────
+// Gateway E2E tests are in e2e_gateway.rs
 
 // ── usage / help ─────────────────────────────────────────────
 

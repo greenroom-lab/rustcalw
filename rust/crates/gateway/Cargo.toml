@@ -7,9 +7,17 @@ repository.workspace = true
 
 [dependencies]
 rustcalw-shared.workspace = true
+anyhow.workspace = true
+axum.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 url = "2"
 urlencoding = "2"
 
 [dev-dependencies]
+tower = { workspace = true, features = ["util"] }
+tokio = { workspace = true, features = ["full"] }
+http-body-util = "0.1"

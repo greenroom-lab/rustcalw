@@ -1,4 +1,5 @@
 pub mod client_info;
+pub mod server;
 pub mod close_reason;
 pub mod connect_error_details;
 pub mod error_codes;

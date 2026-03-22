@@ -42,9 +42,30 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Gateway => {
-            tracing::info!("rustcalw gateway starting...");
-            // TODO: gateway server implementation
-            tracing::warn!("gateway not yet implemented");
+            let port = std::env::var("OPENCLAW_GATEWAY_PORT")
+                .ok()
+                .and_then(|s| s.parse::<u16>().ok())
+                .or_else(|| {
+                    rustcalw_config::load_config()
+                        .ok()
+                        .and_then(|s| s.config.gateway)
+                        .and_then(|g| g.port)
+                })
+                .unwrap_or(rustcalw_gateway::server_constants::RUST_GATEWAY_DEFAULT_PORT);
+
+            tracing::info!("rustcalw gateway starting on port {port}...");
+
+            let server =
+                rustcalw_gateway::server::GatewayServer::start("127.0.0.1", port).await?;
+
+            tracing::info!(
+                "rustcalw gateway listening on http://127.0.0.1:{}",
+                server.port()
+            );
+
+            tokio::signal::ctrl_c().await?;
+            tracing::info!("shutting down...");
+            server.shutdown().await?;
         }
         Commands::Config { action } => match action {
             ConfigAction::Check => {
